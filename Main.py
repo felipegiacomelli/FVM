@@ -5,6 +5,9 @@ import sys, os
 sys.path.append("/home/felipe/SINMEC2018/Matplotlib/CgnsFile")
 from CgnsFile import CgnsFile
 
+sys.path.append("./LinearSystemAdder")
+from DiffusiveFluxAdder import DiffusiveFluxAdder
+
 def main():
     cgnsFile = CgnsFile("/home/felipe/Downloads/16v_4x_4y.cgns")
 
@@ -91,16 +94,15 @@ def main():
                 A[cells[j][i]][cells[j][i]]   += K / (C * south[j]) + K / (C * north[j])
                 A[cells[j][i]][cells[j+1][i]] += -1.0 * K / (C * north[j])
 
-        # for i in range(0, NCellI):
-        #     A[cells[0][i]][cells[0][i]] += K / (C * south[0]) + K / (C * north[0])
-        #     A[cells[0][i]][cells[1][i]] += -1.0 * K / (C * north[0])
-        #     b[cells[0][i]] += 0.0
+        for i in range(0, NCellI):
+            A[cells[0][i]][cells[0][i]] += K / (C * north[0])
+            A[cells[0][i]][cells[1][i]] += -1.0 * K / (C * north[0])
+            b[cells[0][i]] += 0.0
 
-        # for i in range(0, NCellI):
-        #     A[cells[-1][i]][cells[-2][i]] += -1.0 * K / (C * south[-1])
-        #     A[cells[-1][i]][cells[-1][i]] += K / (C * south[-1]) + K / (C * north[-1])
-        #     b[cells[-1][i]] += 0.0
-
+        for i in range(0, NCellI):
+            A[cells[-1][i]][cells[-2][i]] += -1.0 * K / (C * south[-1])
+            A[cells[-1][i]][cells[-1][i]] += K / (C * south[-1])
+            b[cells[-1][i]] += 0.0
 
     t = np.linalg.solve(A, b)
 
