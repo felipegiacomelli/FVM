@@ -2,11 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys, os
 
-sys.path.append("/home/felipe/SINMEC2018/PythonTools/Felipe/CgnsFile")
+sys.path.append("/home/felipe/SINMEC2018/Matplotlib/CgnsFile")
 from CgnsFile import CgnsFile
 
 def main():
-    cgnsFile = CgnsFile("/home/felipe/Downloads/12v_6x_2y.cgns")
+    cgnsFile = CgnsFile("/home/felipe/Downloads/16v_4x_4y.cgns")
 
     X = cgnsFile.coordinateX
     Y = cgnsFile.coordinateY
@@ -23,47 +23,91 @@ def main():
 
     for j in range(0, NCellJ):
         for i in range(0, NCellI):
-            cells[j][i] = j*NVertexI + i
+            cells[j][i] = j*NCellI + i
+
+    print("\n\tX - %i" % NVertexI)
+    for i in range(0, NVertexI):
+        print("\t\t%.5f" % X[0][i])
+
+    print("\n\tY - %i" % NVertexJ)
+    for j in range(0, NVertexJ):
+        print("\t\t%.5f" % Y[j][0])
+
+    print("\n\tcells")
+    for j in range(0, NCellJ):
+        print("\t\t", end="")
+        for i in range(0, NCellI):
+            print("%2i " % cells[j][i], end="")
+        print()
 
     ###########################
 
-    west = np.zeros(NVertexI)
-    for i in range(1, NVertexI):
+    west = np.zeros(NCellI)
+    for i in range(1, NCellI):
         west[i] = X[0][i] - X[0][i-1]
     west[0] = 0.5 * (X[0][1] - X[0][0])
 
-    east = np.zeros(NVertexI)
-    for i in range(0, NVertexI-1):
+    east = np.zeros(NCellI)
+    for i in range(0, NCellI-1):
         east[i] = X[0][i+1] - X[0][i]
     east[-1] = 0.5 * (X[0][-1] - X[0][-2])
+
+    south = np.zeros(NCellJ)
+    for j in range(1, NCellJ):
+        south[j] = Y[j][0] - Y[j-1][0]
+    south[0] = 0.5 * (Y[1][0] - Y[0][0])
+
+    north = np.zeros(NCellJ)
+    for j in range(0, NCellJ-1):
+        north[j] = Y[j+1][0] - Y[j][0]
+    north[-1] = 0.5 * (Y[-1][0] - Y[-2][0])
 
     ###########################
 
     A = np.zeros((NCellI * NCellJ, NCellI * NCellJ))
-
-    for j in range(0, NCellJ):
-        for i in range(1, NCellI - 1):
-            A[cells[j][i]][cells[j][i-1]] = -1.0 * K / (C * west[i])
-            A[cells[j][i]][cells[j][i]]   = K / (C * west[i]) + K / (C * east[i])
-            A[cells[j][i]][cells[j][i+1]] = -1.0 * K / (C * east[i])
-
-    for j in range(0, NCellJ):
-        A[cells[j][0]][cells[j][0]] = K / (C * west[0]) + K / (C * east[0])
-        A[cells[j][0]][cells[j][1]] = -1.0 * K / (C * east[0])
-
-    for j in range(0, NCellJ):
-        A[cells[j][-1]][cells[j][-2]] = -1.0 * K / (C * west[-1])
-        A[cells[j][-1]][cells[j][-1]] = K / (C * west[-1]) + K / (C * east[-1])
-
     b = np.zeros(NCellI * NCellJ)
-    b[0] = 20.0 * K / (C * west[0])
-    b[-1] = 100.0 *  K / (C * east[-1])
+
+    if NCellI > 1:
+        for j in range(0, NCellJ):
+            for i in range(1, NCellI - 1):
+                A[cells[j][i]][cells[j][i-1]] += -1.0 * K / (C * west[i])
+                A[cells[j][i]][cells[j][i]]   += K / (C * west[i]) + K / (C * east[i])
+                A[cells[j][i]][cells[j][i+1]] += -1.0 * K / (C * east[i])
+
+        for j in range(0, NCellJ):
+            A[cells[j][0]][cells[j][0]] += K / (C * west[0]) + K / (C * east[0])
+            A[cells[j][0]][cells[j][1]] += -1.0 * K / (C * east[0])
+            b[cells[j][0]] = 20.0 * K / (C * west[0])
+
+        for j in range(0, NCellJ):
+            A[cells[j][-1]][cells[j][-2]] += -1.0 * K / (C * west[-1])
+            A[cells[j][-1]][cells[j][-1]] += K / (C * west[-1]) + K / (C * east[-1])
+            b[cells[j][-1]] = 100.0 * K / (C * east[-1])
+
+    if NCellJ > 1:
+        for j in range(1, NCellJ - 1):
+            for i in range(0, NCellI):
+                A[cells[j][i]][cells[j-1][i]] += -1.0 * K / (C * south[j])
+                A[cells[j][i]][cells[j][i]]   += K / (C * south[j]) + K / (C * north[j])
+                A[cells[j][i]][cells[j+1][i]] += -1.0 * K / (C * north[j])
+
+        # for i in range(0, NCellI):
+        #     A[cells[0][i]][cells[0][i]] += K / (C * south[0]) + K / (C * north[0])
+        #     A[cells[0][i]][cells[1][i]] += -1.0 * K / (C * north[0])
+        #     b[cells[0][i]] += 0.0
+
+        # for i in range(0, NCellI):
+        #     A[cells[-1][i]][cells[-2][i]] += -1.0 * K / (C * south[-1])
+        #     A[cells[-1][i]][cells[-1][i]] += K / (C * south[-1]) + K / (C * north[-1])
+        #     b[cells[-1][i]] += 0.0
+
 
     t = np.linalg.solve(A, b)
 
     x = np.zeros(NCellI * NCellJ)
-    for i in range(0, NCellI):
-        x[i] = 0.5 * (X[0][i+1] + X[0][i])
+    for j in range(0, NCellJ):
+        for i in range(0, NCellI):
+            x[cells[j][i]] = 0.5 * (X[j][i+1] + X[j][i])
 
     T = 80.0*X[0] + 20.0
 
@@ -86,21 +130,6 @@ def main():
 
     ###########################
 
-    print("\n\tX - %i" % NVertexI)
-    for i in range(0, NVertexI):
-        print("\t\t%.5f" % X[0][i])
-
-    print("\n\tY - %i" % NVertexJ)
-    for j in range(0, NVertexJ):
-        print("\t\t%.5f" % Y[j][0])
-
-    print("\n\tcells")
-    for j in range(0, NCellJ):
-        print("\t\t", end="")
-        for i in range(0, NCellI):
-            print("%2i " % (j*NVertexI + i), end="")
-    print()
-
     print("\n\tw")
     for w in west:
         print("\t\t%.5f" % w)
@@ -108,6 +137,16 @@ def main():
     print("\n\te")
     for e in east:
         print("\t\t%.5f" % e)
+
+    print("\n\ts")
+    for s in south:
+        print("\t\t%.5f" % s)
+
+    print("\n\tn")
+    for n in north:
+        print("\t\t%.5f" % n)
+
+    ###########################
 
     print("\n\tA - %ix%i\n" % (A.shape[0], A.shape[1]))
     print(A)
