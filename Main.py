@@ -44,65 +44,79 @@ def main():
         print()
 
     ###########################
+    deltas = {}
 
     west = np.zeros(NCellI)
     for i in range(1, NCellI):
         west[i] = X[0][i] - X[0][i-1]
     west[0] = 0.5 * (X[0][1] - X[0][0])
+    deltas["west"] = west
 
     east = np.zeros(NCellI)
     for i in range(0, NCellI-1):
         east[i] = X[0][i+1] - X[0][i]
     east[-1] = 0.5 * (X[0][-1] - X[0][-2])
+    deltas["east"] = east
 
     south = np.zeros(NCellJ)
     for j in range(1, NCellJ):
         south[j] = Y[j][0] - Y[j-1][0]
     south[0] = 0.5 * (Y[1][0] - Y[0][0])
+    deltas["south"] = south
 
     north = np.zeros(NCellJ)
     for j in range(0, NCellJ-1):
         north[j] = Y[j+1][0] - Y[j][0]
     north[-1] = 0.5 * (Y[-1][0] - Y[-2][0])
+    deltas["north"] = north
 
     ###########################
 
     A = np.zeros((NCellI * NCellJ, NCellI * NCellJ))
     b = np.zeros(NCellI * NCellJ)
 
-    if NCellI > 1:
-        for j in range(0, NCellJ):
-            for i in range(1, NCellI - 1):
-                A[cells[j][i]][cells[j][i-1]] += -1.0 * K / (C * west[i])
-                A[cells[j][i]][cells[j][i]]   += K / (C * west[i]) + K / (C * east[i])
-                A[cells[j][i]][cells[j][i+1]] += -1.0 * K / (C * east[i])
+    diffusiveFluxAdder = DiffusiveFluxAdder(cells, deltas, A, b)
+    diffusiveFluxAdder.addToMatrix()
 
-        for j in range(0, NCellJ):
-            A[cells[j][0]][cells[j][0]] += K / (C * west[0]) + K / (C * east[0])
-            A[cells[j][0]][cells[j][1]] += -1.0 * K / (C * east[0])
-            b[cells[j][0]] = 20.0 * K / (C * west[0])
+    # if NCellI > 1:
+    #     for j in range(0, NCellJ):
+    #         A[cells[j][0]][cells[j][0]] += K / (C * east[0])
+    #         A[cells[j][0]][cells[j][1]] += -1.0 * K / (C * east[0])
 
-        for j in range(0, NCellJ):
-            A[cells[j][-1]][cells[j][-2]] += -1.0 * K / (C * west[-1])
-            A[cells[j][-1]][cells[j][-1]] += K / (C * west[-1]) + K / (C * east[-1])
-            b[cells[j][-1]] = 100.0 * K / (C * east[-1])
+    #         for i in range(1, NCellI - 1):
+    #             A[cells[j][i]][cells[j][i-1]] += -1.0 * K / (C * west[i])
+    #             A[cells[j][i]][cells[j][i]]   += K / (C * west[i]) + K / (C * east[i])
+    #             A[cells[j][i]][cells[j][i+1]] += -1.0 * K / (C * east[i])
 
-    if NCellJ > 1:
-        for j in range(1, NCellJ - 1):
-            for i in range(0, NCellI):
-                A[cells[j][i]][cells[j-1][i]] += -1.0 * K / (C * south[j])
-                A[cells[j][i]][cells[j][i]]   += K / (C * south[j]) + K / (C * north[j])
-                A[cells[j][i]][cells[j+1][i]] += -1.0 * K / (C * north[j])
+    #         A[cells[j][-1]][cells[j][-2]] += -1.0 * K / (C * west[-1])
+    #         A[cells[j][-1]][cells[j][-1]] += K / (C * west[-1])
 
-        for i in range(0, NCellI):
-            A[cells[0][i]][cells[0][i]] += K / (C * north[0])
-            A[cells[0][i]][cells[1][i]] += -1.0 * K / (C * north[0])
-            b[cells[0][i]] += 0.0
+    #     for j in range(0, NCellJ):
+    #         A[cells[j][0]][cells[j][0]] += K / (C * west[0])
+    #         b[cells[j][0]] = 20.0 * K / (C * west[0])
 
-        for i in range(0, NCellI):
-            A[cells[-1][i]][cells[-2][i]] += -1.0 * K / (C * south[-1])
-            A[cells[-1][i]][cells[-1][i]] += K / (C * south[-1])
-            b[cells[-1][i]] += 0.0
+    #     for j in range(0, NCellJ):
+    #         A[cells[j][-1]][cells[j][-1]] += K / (C * east[-1])
+    #         b[cells[j][-1]] = 100.0 * K / (C * east[-1])
+
+    # if NCellJ > 1:
+    #     for j in range(1, NCellJ - 1):
+    #         A[cells[0][i]][cells[0][i]] += K / (C * north[0])
+    #         A[cells[0][i]][cells[1][i]] += -1.0 * K / (C * north[0])
+
+    #         for i in range(0, NCellI):
+    #             A[cells[j][i]][cells[j-1][i]] += -1.0 * K / (C * south[j])
+    #             A[cells[j][i]][cells[j][i]]   += K / (C * south[j]) + K / (C * north[j])
+    #             A[cells[j][i]][cells[j+1][i]] += -1.0 * K / (C * north[j])
+
+    #         A[cells[-1][i]][cells[-2][i]] += -1.0 * K / (C * south[-1])
+    #         A[cells[-1][i]][cells[-1][i]] += K / (C * south[-1])
+
+    #     for i in range(0, NCellI):
+    #         b[cells[0][i]] += 0.0
+
+    #     for i in range(0, NCellI):
+    #         b[cells[-1][i]] += 0.0
 
     t = np.linalg.solve(A, b)
 
